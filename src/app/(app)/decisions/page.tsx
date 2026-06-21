@@ -112,11 +112,18 @@ export default function Decisions() {
               </div>
             </Card>
 
-            <Link href="/simulation">
-              <Button variant="blue" size="lg" className="w-full" icon={<Icon name="sliders-horizontal" size={18} />}>
-                Voir le plan détaillé
-              </Button>
-            </Link>
+            <div className="grid grid-cols-2 gap-2">
+              <Link href="/simulation">
+                <Button variant="blue" size="lg" className="w-full" icon={<Icon name="sliders-horizontal" size={18} />}>
+                  Simuler
+                </Button>
+              </Link>
+              <Link href="/futures">
+                <Button variant="gold" size="lg" className="w-full" icon={<Icon name="git-branch" size={18} />}>
+                  Futurs Toi
+                </Button>
+              </Link>
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>

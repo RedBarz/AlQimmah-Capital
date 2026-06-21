@@ -105,10 +105,13 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-2">
             {moreScreens.map((s) => (
               <Link key={s.href} href={s.href}>
-                <Card padding="sm" className="flex h-full flex-col gap-2" hover>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-3 text-gold">
-                    <Icon name={s.icon} size={18} />
-                  </span>
+                <Card padding="sm" className="flex h-full flex-col gap-2" glow={s.badge ? "gold" : "none"} hover>
+                  <div className="flex items-start justify-between">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-3 text-gold">
+                      <Icon name={s.icon} size={18} />
+                    </span>
+                    {s.badge && <Badge variant="gold" size="sm" className="badge-live">{s.badge}</Badge>}
+                  </div>
                   <div>
                     <p className="text-sm font-semibold text-text-primary">{s.label}</p>
                     <p className="text-2xs text-text-muted">{s.desc}</p>

@@ -207,6 +207,64 @@ export const visionMilestones = [
   { year: "2036", label: "Sommet", value: 890, type: "summit" as const },
 ];
 
+// Le Conseil des Futurs Toi (fonctionnalité signature — Partie 6)
+export const futureSelves = [
+  {
+    id: "prudent",
+    name: "Toi-Prudent",
+    icon: "lock",
+    color: "blue" as const,
+    age: "+5 ans",
+    netWorth: "298 k€",
+    headline: "Garde le CDI, lance en parallèle.",
+    stance: "Contre la rupture brutale",
+    argument:
+      "Tu sécurises ton revenu pendant que l'entreprise grandit. Moins de gloire, mais tu ne risques jamais de tout perdre. La liberté financière arrive 2 ans plus tard — mais elle arrive presque à coup sûr.",
+    traits: [
+      { label: "Risque pris", value: 25 },
+      { label: "Sérénité", value: 88 },
+      { label: "Vitesse", value: 40 },
+    ],
+    probability: 82,
+  },
+  {
+    id: "audacieux",
+    name: "Toi-Audacieux",
+    icon: "flame",
+    color: "gold" as const,
+    age: "+5 ans",
+    netWorth: "890 k€",
+    headline: "Quitte tout. Fonce maintenant.",
+    stance: "Pour la rupture immédiate",
+    argument:
+      "Le focus total change tout : 100 % de ton énergie sur l'entreprise. Dans le meilleur scénario, tu vas 3× plus vite. Mais 1 chance sur 3 que tu doives revenir au salariat dans 18 mois.",
+    traits: [
+      { label: "Risque pris", value: 90 },
+      { label: "Sérénité", value: 35 },
+      { label: "Vitesse", value: 95 },
+    ],
+    probability: 41,
+  },
+  {
+    id: "discipline",
+    name: "Toi-Discipliné",
+    icon: "target",
+    color: "green" as const,
+    age: "+5 ans",
+    netWorth: "470 k€",
+    headline: "Attends 4 mois. Prépare le terrain.",
+    stance: "Pour le départ planifié",
+    argument:
+      "Tu fixes un seuil clair (2 000 €/mois de CA récurrent), tu l'atteins, puis tu pars. Le meilleur ratio risque/récompense : tu pars en position de force, pas dans l'urgence.",
+    traits: [
+      { label: "Risque pris", value: 55 },
+      { label: "Sérénité", value: 72 },
+      { label: "Vitesse", value: 68 },
+    ],
+    probability: 71,
+  },
+];
+
 export const navItems = [
   { href: "/dashboard", label: "Accueil", icon: "home" },
   { href: "/digital-twin", label: "Jumeau", icon: "git-branch" },
@@ -216,6 +274,7 @@ export const navItems = [
 ];
 
 export const moreScreens = [
+  { href: "/futures", label: "Futurs Toi", icon: "git-branch", desc: "Le conseil de tes futurs", badge: "Nouveau" },
   { href: "/simulation", label: "Simulation", icon: "sliders-horizontal", desc: "Simuler une décision" },
   { href: "/action-plan", label: "Plan d'action", icon: "list-checks", desc: "Tes prochaines étapes" },
   { href: "/calendar", label: "Calendrier", icon: "calendar", desc: "Agenda intelligent" },
