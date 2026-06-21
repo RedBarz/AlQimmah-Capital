@@ -1,119 +1,100 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { visionMilestones } from "@/lib/data";
 import { ScreenHeader } from "@/components/layout/ScreenHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { VisionChart } from "@/components/charts/Charts";
-import { cn } from "@/lib/utils";
-
-const milestoneIcons: Record<string, string> = {
-  "2026": "play",
-  "2028": "rocket",
-  "2030": "home",
-  "2033": "wallet",
-  "2036": "star",
-};
+import { cn, formatCurrency } from "@/lib/utils";
+import { useProfile } from "@/lib/profile";
+import { netWorthTrajectory, yearsToFreedom, fireNumber, netWorth } from "@/lib/engine";
 
 export default function Vision() {
-  const [selected, setSelected] = useState("2036");
-  const active = visionMilestones.find((m) => m.year === selected)!;
+  const { profile, ready } = useProfile();
+  const [yearIdx, setYearIdx] = useState(10);
+
+  const data = useMemo(() => {
+    if (!ready) return [];
+    const traj = netWorthTrajectory(profile, 10);
+    const ytf = yearsToFreedom(profile);
+    return traj.map((d, i) => ({
+      year: d.year,
+      value: d.value,
+      label: i === 0 ? "Aujourd'hui" : i === 10 ? "Sommet" : `Année ${i}`,
+      type: i === 0 ? "start" : i === 10 ? "summit" : ytf != null && Math.round(ytf) === i ? "milestone" : "mid",
+    }));
+  }, [profile, ready]);
+
+  if (!ready || data.length === 0) return null;
+
+  const active = data[Math.min(yearIdx, data.length - 1)];
+  const ytf = yearsToFreedom(profile);
+  const fire = fireNumber(profile);
+  const start = netWorth(profile);
+  const end = data[data.length - 1].value * 1000;
+  const multiple = start > 0 ? (end / start).toFixed(1) : "—";
 
   return (
     <div className="flex flex-col">
-      <ScreenHeader title="Vision 10 ans" subtitle="Ton ascension vers le sommet" back />
+      <ScreenHeader title="Vision 10 ans" subtitle="Ta trajectoire réelle, projetée" back />
 
       <div className="space-y-4 px-4 pt-3 pb-4">
-        {/* The ascent chart */}
         <Card glow="gold" padding="lg">
           <div className="mb-2 flex items-center justify-between">
             <div>
               <p className="text-xs text-text-muted">Patrimoine projeté en {active.year}</p>
-              <motion.p
-                key={active.value}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="font-tight text-3xl font-extrabold text-gold-shimmer"
-              >
+              <motion.p key={active.value} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="font-tight text-3xl font-extrabold text-gold-shimmer tabular-nums">
                 {active.value} k€
               </motion.p>
             </div>
             <Badge variant="gold" dot>{active.label}</Badge>
           </div>
-          <VisionChart data={visionMilestones} height={240} />
-          <div className="mt-2 flex items-center justify-center gap-1.5 text-2xs text-text-muted">
-            <span className="h-1.5 w-3 rounded-full bg-gold-gradient" />
-            Trajectoire médiane (P50) · bandes P10–P90 disponibles en Pro
-          </div>
+          <VisionChart data={data} height={240} />
+          <p className="mt-2 text-center text-2xs text-text-muted">
+            Croissance à {Math.round(profile.expectedReturn * 100)} %/an + ton épargne mensuelle
+          </p>
         </Card>
 
         {/* Year scrubber */}
-        <div className="flex justify-between gap-1.5">
-          {visionMilestones.map((m) => (
-            <button
-              key={m.year}
-              onClick={() => setSelected(m.year)}
-              className={cn(
-                "flex flex-1 flex-col items-center gap-1 rounded-xl border py-2 transition-all",
-                selected === m.year ? "border-gold/40 bg-gold/10" : "border-border bg-surface-2"
-              )}
-            >
-              <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg", selected === m.year ? "bg-gold/15 text-gold" : "bg-surface-3 text-text-muted")}>
-                <Icon name={milestoneIcons[m.year]} size={14} />
-              </span>
-              <span className={cn("text-2xs font-semibold", selected === m.year ? "text-gold" : "text-text-muted")}>
-                {m.year}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Life milestone cards */}
-        <div>
-          <h2 className="mb-2 font-tight text-sm font-semibold text-text-secondary">Étapes de vie</h2>
-          <div className="space-y-2">
-            {visionMilestones.filter((m) => m.type !== "start").map((m, i) => (
-              <motion.div
-                key={m.year}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.07 }}
-              >
-                <Card
-                  padding="sm"
-                  glow={m.type === "summit" ? "gold" : "none"}
-                  className="flex items-center gap-3"
-                  hover
-                  onClick={() => setSelected(m.year)}
-                >
-                  <span className={cn(
-                    "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl",
-                    m.type === "summit" ? "bg-gold/15 text-gold" : "bg-surface-3 text-text-secondary"
-                  )}>
-                    <Icon name={milestoneIcons[m.year]} size={18} />
-                  </span>
-                  <div className="flex-1">
-                    <p className="font-tight text-sm font-bold text-text-primary">{m.label}</p>
-                    <p className="text-2xs text-text-muted">{m.year} · {m.value} k€ de patrimoine</p>
-                  </div>
-                  {m.type === "summit" && <Icon name="sparkles" size={18} className="text-gold" />}
-                </Card>
-              </motion.div>
-            ))}
+        <Card>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs text-text-muted">Voyage dans le temps</span>
+            <span className="font-tight text-sm font-bold text-gold">{active.year}</span>
           </div>
+          <input type="range" min={0} max={10} step={1} value={yearIdx > 10 ? 10 : yearIdx} onChange={(e) => setYearIdx(Number(e.target.value))} className="w-full accent-[#D4AF37]" />
+          <div className="flex justify-between text-2xs text-text-muted">
+            <span>{data[0].year}</span>
+            <span>{data[data.length - 1].year}</span>
+          </div>
+        </Card>
+
+        {/* Real insights */}
+        <div className="grid grid-cols-2 gap-2">
+          <Card padding="sm">
+            <p className="text-2xs text-text-muted">Multiplicateur 10 ans</p>
+            <p className="font-tight text-xl font-bold text-gold tabular-nums">×{multiple}</p>
+          </Card>
+          <Card padding="sm">
+            <p className="text-2xs text-text-muted">Liberté financière</p>
+            <p className="font-tight text-xl font-bold text-green-progress tabular-nums">
+              {ytf == null ? "—" : `${ytf} ans`}
+            </p>
+          </Card>
         </div>
 
-        {/* Emotional anchor */}
         <div className="rounded-2xl border border-gold/20 bg-gold-subtle p-4 text-center">
           <Icon name="trending-up" size={24} className="mx-auto text-gold" />
           <p className="mt-2 font-tight text-base font-bold text-text-primary">
-            Tu es à 41 % de ton premier sommet.
+            {ytf == null
+              ? "À ce rythme, la liberté financière reste hors de portée."
+              : `Tu atteins ${formatCurrency(fire)} en ${ytf} ans.`}
           </p>
           <p className="mt-1 text-xs text-text-secondary">
-            Chaque décision d'aujourd'hui dessine la courbe de demain.
+            {ytf == null
+              ? "Augmente ton épargne mensuelle pour débloquer la trajectoire."
+              : "Chaque euro épargné en plus rapproche ce sommet."}
           </p>
         </div>
       </div>

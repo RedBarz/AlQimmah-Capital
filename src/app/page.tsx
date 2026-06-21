@@ -6,65 +6,67 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { cn } from "@/lib/utils";
+import { useProfile } from "@/lib/profile";
+import { netWorth, runwayMonths, freedomProgress } from "@/lib/engine";
+import { cn, formatCurrency } from "@/lib/utils";
 
-const summits = [
-  { id: "fin", label: "Financier", icon: "wallet" },
-  { id: "pro", label: "Professionnel", icon: "briefcase" },
-  { id: "int", label: "Intellectuel", icon: "graduation-cap" },
-  { id: "spi", label: "Spirituel", icon: "sparkles" },
-  { id: "per", label: "Personnel", icon: "heart-pulse" },
-];
+type Field = {
+  key: "age" | "monthlyIncome" | "monthlyExpenses" | "savings" | "investments" | "debts";
+  label: string;
+  hint: string;
+  icon: string;
+  min: number;
+  max: number;
+  step: number;
+  suffix?: string;
+};
 
-const connections = [
-  { id: "bank", label: "Compte bancaire", icon: "wallet", gain: 18 },
-  { id: "cal", label: "Calendrier", icon: "calendar", gain: 9 },
-  { id: "health", label: "Santé & sport", icon: "heart-pulse", gain: 7 },
-  { id: "career", label: "LinkedIn", icon: "briefcase", gain: 11 },
+const fields: Field[] = [
+  { key: "age", label: "Ton âge", hint: "Pour calibrer ton horizon", icon: "user", min: 16, max: 75, step: 1, suffix: "ans" },
+  { key: "monthlyIncome", label: "Revenu net mensuel", hint: "Ce que tu touches chaque mois", icon: "wallet", min: 0, max: 15000, step: 100, suffix: "€" },
+  { key: "monthlyExpenses", label: "Dépenses mensuelles", hint: "Loyer, courses, factures…", icon: "shopping-bag", min: 0, max: 12000, step: 100, suffix: "€" },
+  { key: "savings", label: "Épargne disponible", hint: "Cash mobilisable rapidement", icon: "wallet", min: 0, max: 200000, step: 500, suffix: "€" },
+  { key: "investments", label: "Placements", hint: "Bourse, PEA, crypto, etc.", icon: "trending-up", min: 0, max: 500000, step: 500, suffix: "€" },
+  { key: "debts", label: "Dettes totales", hint: "Crédits, prêts en cours", icon: "arrow-down-right", min: 0, max: 300000, step: 500, suffix: "€" },
 ];
 
 export default function Onboarding() {
   const router = useRouter();
+  const { profile, setProfile, setOnboarded } = useProfile();
   const [step, setStep] = useState(0);
-  const [decision, setDecision] = useState("");
-  const [selectedSummits, setSelectedSummits] = useState<string[]>(["fin", "pro"]);
-  const [connected, setConnected] = useState<string[]>([]);
-  const precision = 34 + connected.reduce((a, c) => a + (connections.find((x) => x.id === c)?.gain ?? 0), 0);
+  const [draft, setDraft] = useState(profile);
 
-  const next = () => setStep((s) => Math.min(s + 1, 3));
+  const totalSteps = 2 + fields.length; // welcome + fields + reveal
+  const fieldIndex = step - 1;
+  const isWelcome = step === 0;
+  const isFields = step >= 1 && step <= fields.length;
+  const isReveal = step === fields.length + 1;
+
+  const next = () => setStep((s) => Math.min(s + 1, totalSteps - 1));
+  const back = () => setStep((s) => Math.max(s - 1, 0));
+
+  const finish = () => {
+    setProfile(draft);
+    setOnboarded(true);
+    router.push("/dashboard");
+  };
+
+  const nw = netWorth(draft);
+  const runway = runwayMonths(draft);
+  const freedom = freedomProgress(draft);
 
   return (
     <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-hidden bg-background">
-      {/* Mountain summit backdrop */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-hero-gradient opacity-80" />
-        <svg className="absolute bottom-0 w-full" viewBox="0 0 400 300" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="mtn" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#18181B" />
-              <stop offset="100%" stopColor="#09090B" />
-            </linearGradient>
-          </defs>
-          <path d="M0 300 L120 140 L200 200 L280 90 L400 220 L400 300 Z" fill="url(#mtn)" opacity="0.9" />
-          <path d="M0 300 L80 200 L180 240 L260 170 L360 250 L400 230 L400 300 Z" fill="#111113" opacity="0.7" />
-        </svg>
-        <motion.div
-          className="absolute left-1/2 top-[28%] h-2 w-2 -translate-x-1/2 rounded-full bg-gold-light"
-          animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.4, 1] }}
-          transition={{ duration: 3, repeat: Infinity }}
-          style={{ boxShadow: "0 0 24px 6px rgba(255,215,0,0.6)" }}
-        />
-      </div>
+      <div className="pointer-events-none absolute inset-0 z-0 bg-hero-gradient opacity-80" />
 
-      {/* Progress dots */}
-      <div className="relative z-10 flex items-center justify-center gap-2 pt-6">
-        {[0, 1, 2, 3].map((i) => (
+      {/* Progress */}
+      <div className="relative z-10 flex items-center gap-1.5 px-6 pt-6">
+        {Array.from({ length: totalSteps }).map((_, i) => (
           <span
             key={i}
             className={cn(
-              "h-1.5 rounded-full transition-all duration-500",
-              i === step ? "w-6 bg-gold" : i < step ? "w-1.5 bg-gold/50" : "w-1.5 bg-surface-3"
+              "h-1 flex-1 rounded-full transition-all duration-500",
+              i === step ? "bg-gold" : i < step ? "bg-gold/50" : "bg-surface-3"
             )}
           />
         ))}
@@ -72,8 +74,7 @@ export default function Onboarding() {
 
       <div className="relative z-10 flex flex-1 flex-col px-6">
         <AnimatePresence mode="wait">
-          {/* STEP 0 — Welcome */}
-          {step === 0 && (
+          {isWelcome && (
             <motion.div
               key="welcome"
               initial={{ opacity: 0, y: 20 }}
@@ -81,201 +82,148 @@ export default function Onboarding() {
               exit={{ opacity: 0, y: -20 }}
               className="flex flex-1 flex-col items-center justify-center text-center"
             >
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 6, repeat: Infinity }}
-              >
+              <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 6, repeat: Infinity }}>
                 <Logo size="xl" showText={false} />
               </motion.div>
-              <h1 className="mt-6 font-tight text-4xl font-extrabold tracking-tight text-gold-shimmer">
-                AlQimmah
-              </h1>
-              <p className="mt-1 text-xs font-medium uppercase tracking-[0.3em] text-text-muted">
-                OS
-              </p>
+              <h1 className="mt-6 font-tight text-4xl font-extrabold tracking-tight text-gold-shimmer">AlQimmah</h1>
+              <p className="mt-1 text-xs font-medium uppercase tracking-[0.3em] text-text-muted">OS</p>
               <p className="mt-6 max-w-xs text-lg font-medium leading-snug text-text-secondary">
                 Visualise ton futur.
                 <br />
                 Décide avec confiance.
               </p>
               <p className="mt-3 max-w-xs text-sm text-text-muted">
-                Avant de te dire quoi faire, je vais apprendre qui tu es.
+                6 chiffres sur ta situation réelle, et je te montre ta trajectoire. Tes données restent sur ton appareil.
               </p>
             </motion.div>
           )}
 
-          {/* STEP 1 — The decision */}
-          {step === 1 && (
+          {isFields && (
             <motion.div
-              key="decision"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              key={`field-${fieldIndex}`}
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }}
               className="flex flex-1 flex-col justify-center"
             >
-              <h2 className="font-tight text-2xl font-bold text-text-primary">
-                Quelle décision te tient éveillé en ce moment ?
-              </h2>
-              <p className="mt-2 text-sm text-text-muted">
-                En 90 secondes, je te montre une première projection.
-              </p>
-              <textarea
-                value={decision}
-                onChange={(e) => setDecision(e.target.value)}
-                placeholder="Ex : Dois-je quitter mon CDI pour lancer mon entreprise ?"
-                className="mt-5 h-28 w-full resize-none rounded-2xl border border-border bg-surface-2 p-4 text-sm text-text-primary placeholder:text-text-muted focus:border-gold/40 focus:outline-none focus:ring-1 focus:ring-gold/20"
-              />
-              <div className="mt-4 flex flex-wrap gap-2">
-                {["Quitter mon CDI", "Acheter un bien", "Créer mon entreprise"].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setDecision(s + " ?")}
-                    className="rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs text-text-secondary transition-colors hover:border-gold/30 hover:text-gold"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 2 — Summits */}
-          {step === 2 && (
-            <motion.div
-              key="summits"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="flex flex-1 flex-col justify-center"
-            >
-              <h2 className="font-tight text-2xl font-bold text-text-primary">
-                Quels sommets veux-tu atteindre ?
-              </h2>
-              <p className="mt-2 text-sm text-text-muted">Choisis tes montagnes.</p>
-              <div className="mt-5 space-y-2.5">
-                {summits.map((s) => {
-                  const sel = selectedSummits.includes(s.id);
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() =>
-                        setSelectedSummits((prev) =>
-                          prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]
-                        )
-                      }
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-2xl border p-3.5 transition-all duration-200 active:scale-[0.98]",
-                        sel
-                          ? "border-gold/40 bg-gold/10 shadow-gold-sm"
-                          : "border-border bg-surface-2"
-                      )}
-                    >
-                      <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", sel ? "bg-gold/15 text-gold" : "bg-surface-3 text-text-muted")}>
-                        <Icon name={s.icon} size={20} />
+              {(() => {
+                const f = fields[fieldIndex];
+                const value = draft[f.key];
+                return (
+                  <div>
+                    <div className="mb-6 flex items-center gap-3">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
+                        <Icon name={f.icon} size={22} />
                       </span>
-                      <span className={cn("flex-1 text-left text-sm font-medium", sel ? "text-text-primary" : "text-text-secondary")}>
-                        Sommet {s.label}
+                      <div>
+                        <p className="text-2xs uppercase tracking-wide text-text-muted">
+                          Étape {fieldIndex + 1} / {fields.length}
+                        </p>
+                        <h2 className="font-tight text-xl font-bold text-text-primary">{f.label}</h2>
+                      </div>
+                    </div>
+
+                    <div className="text-center">
+                      <span className="font-tight text-5xl font-extrabold text-gold-shimmer tabular-nums">
+                        {f.key === "age" ? value : value.toLocaleString("fr-FR")}
                       </span>
-                      {sel && <Icon name="check" size={18} className="text-gold" />}
-                    </button>
-                  );
-                })}
-              </div>
+                      <span className="ml-1 text-2xl font-bold text-text-muted">{f.suffix}</span>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={f.min}
+                      max={f.max}
+                      step={f.step}
+                      value={value}
+                      onChange={(e) => setDraft({ ...draft, [f.key]: Number(e.target.value) })}
+                      className="mt-6 w-full accent-[#D4AF37]"
+                    />
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-xs text-text-muted">Ajuste précisément :</span>
+                      <input
+                        type="number"
+                        value={value}
+                        onChange={(e) => setDraft({ ...draft, [f.key]: Number(e.target.value) || 0 })}
+                        className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary tabular-nums focus:border-gold/40 focus:outline-none"
+                      />
+                    </div>
+
+                    <p className="mt-3 text-center text-xs text-text-muted">{f.hint}</p>
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
 
-          {/* STEP 3 — Connect & precision */}
-          {step === 3 && (
+          {isReveal && (
             <motion.div
-              key="connect"
+              key="reveal"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               className="flex flex-1 flex-col justify-center"
             >
-              <h2 className="font-tight text-2xl font-bold text-text-primary">
-                Affine ton jumeau numérique
-              </h2>
-              <p className="mt-2 text-sm text-text-muted">
-                Chaque connexion augmente sa précision.
-              </p>
+              <h2 className="text-center font-tight text-2xl font-bold text-text-primary">Voici ta réalité, calculée.</h2>
+              <p className="mt-1 text-center text-sm text-text-muted">À partir de tes vrais chiffres.</p>
 
-              <div className="mt-5 rounded-2xl border border-gold/20 bg-gold-subtle p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-text-secondary">Précision du jumeau</span>
-                  <motion.span
-                    key={precision}
-                    initial={{ scale: 1.3, color: "#FFD700" }}
-                    animate={{ scale: 1, color: "#D4AF37" }}
-                    className="font-tight text-xl font-bold"
+              <div className="mt-6 space-y-3">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="rounded-2xl border border-gold/20 bg-gold-subtle p-4 text-center"
+                >
+                  <p className="text-xs text-text-muted">Patrimoine net</p>
+                  <p className="font-tight text-3xl font-extrabold text-gold-shimmer tabular-nums">{formatCurrency(nw)}</p>
+                </motion.div>
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="rounded-2xl border border-border bg-surface-2 p-4 text-center"
                   >
-                    {precision}%
-                  </motion.span>
+                    <p className="text-xs text-text-muted">Autonomie</p>
+                    <p className="font-tight text-2xl font-bold text-blue-ai tabular-nums">
+                      {runway === Infinity ? "∞" : Math.floor(runway)} <span className="text-sm">mois</span>
+                    </p>
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="rounded-2xl border border-border bg-surface-2 p-4 text-center"
+                  >
+                    <p className="text-xs text-text-muted">Liberté financière</p>
+                    <p className="font-tight text-2xl font-bold text-green-progress tabular-nums">{freedom}%</p>
+                  </motion.div>
                 </div>
-                <ProgressBar value={precision} color="gold" className="mt-2" height={8} />
               </div>
-
-              <div className="mt-4 space-y-2.5">
-                {connections.map((c) => {
-                  const on = connected.includes(c.id);
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() =>
-                        setConnected((prev) => (prev.includes(c.id) ? prev.filter((x) => x !== c.id) : [...prev, c.id]))
-                      }
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-2xl border p-3 transition-all active:scale-[0.98]",
-                        on ? "border-green-progress/30 bg-green-progress/5" : "border-border bg-surface-2"
-                      )}
-                    >
-                      <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", on ? "bg-green-progress/15 text-green-progress" : "bg-surface-3 text-text-muted")}>
-                        <Icon name={c.icon} size={18} />
-                      </span>
-                      <span className="flex-1 text-left text-sm font-medium text-text-secondary">{c.label}</span>
-                      {on ? (
-                        <span className="flex items-center gap-1 text-xs font-medium text-green-progress">
-                          <Icon name="check" size={14} /> Lié
-                        </span>
-                      ) : (
-                        <span className="text-xs font-medium text-gold">+{c.gain}%</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <p className="mt-5 text-center text-xs text-text-muted">
+                Tout l'OS calcule désormais à partir de ces chiffres. Tu pourras les modifier à tout moment.
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
       {/* CTA */}
-      <div className="relative z-10 space-y-3 px-6 pb-10 pt-4">
-        {step < 3 ? (
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={next}
-            disabled={step === 1 && decision.trim().length === 0}
-            icon={<Icon name="chevron-right" size={18} />}
-            iconPosition="right"
-          >
-            {step === 0 ? "Commencer" : "Continuer"}
-          </Button>
-        ) : (
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={() => router.push("/dashboard")}
-            icon={<Icon name="sparkles" size={18} />}
-          >
-            Révéler mon futur
+      <div className="relative z-10 flex items-center gap-3 px-6 pb-10 pt-4">
+        {!isWelcome && (
+          <Button variant="outline" size="lg" onClick={back} className="flex-shrink-0">
+            <Icon name="chevron-left" size={18} />
           </Button>
         )}
-        {step === 0 && (
-          <button className="w-full text-center text-sm text-text-muted transition-colors hover:text-text-secondary">
-            Se connecter
-          </button>
+        {!isReveal ? (
+          <Button size="lg" className="flex-1" onClick={next} icon={<Icon name="chevron-right" size={18} />} iconPosition="right">
+            {isWelcome ? "Commencer" : "Continuer"}
+          </Button>
+        ) : (
+          <Button size="lg" className="flex-1" onClick={finish} icon={<Icon name="sparkles" size={18} />}>
+            Entrer dans AlQimmah
+          </Button>
         )}
       </div>
     </div>

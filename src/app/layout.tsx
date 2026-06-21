@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ProfileProvider } from "@/lib/profile";
 
 export const metadata: Metadata = {
   title: "AlQimmah OS — Visualise ton futur",
@@ -24,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className="bg-background text-text-primary antialiased">
-        {children}
+        <ProfileProvider>{children}</ProfileProvider>
       </body>
     </html>
   );

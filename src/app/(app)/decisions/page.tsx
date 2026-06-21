@@ -1,131 +1,99 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { decisions } from "@/lib/data";
+import { motion } from "framer-motion";
 import { ScreenHeader } from "@/components/layout/ScreenHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { ScoreRing } from "@/components/ui/ScoreRing";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import { useProfile } from "@/lib/profile";
+import { evaluateQuit, runwayMonths } from "@/lib/engine";
 
 export default function Decisions() {
-  const [activeId, setActiveId] = useState(decisions[0].id);
-  const [query, setQuery] = useState("");
-  const active = decisions.find((d) => d.id === activeId)!;
-  const scoreColor = active.score >= 65 ? "green" : active.score >= 45 ? "gold" : "red";
+  const { profile, ready } = useProfile();
+  const [sideIncome, setSideIncome] = useState(0);
+
+  const result = useMemo(() => (ready ? evaluateQuit(profile, sideIncome) : null), [profile, sideIncome, ready]);
+  if (!ready || !result) return null;
+
+  const scoreColor = result.score >= 65 ? "green" : result.score >= 40 ? "gold" : "red";
+  const runway = runwayMonths(profile);
 
   return (
     <div className="flex flex-col">
-      <ScreenHeader title="Décisions" subtitle="Le moteur stratégique IA" icon="brain" />
+      <ScreenHeader title="Décisions" subtitle="Réponses calculées sur ta vie" icon="brain" />
 
       <div className="space-y-4 px-4 pt-3 pb-4">
-        {/* Ask box */}
-        <Card glow="blue" className="flex items-center gap-2">
-          <Icon name="brain" size={20} className="text-blue-ai" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Pose une décision de vie…"
-            className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
-          />
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-gradient text-white">
-            <Icon name="arrow-up-right" size={16} />
-          </button>
+        <Card glow="blue" className="text-center">
+          <Icon name="brain" size={22} className="mx-auto text-blue-ai" />
+          <p className="mt-2 font-tight text-lg font-bold text-text-primary">« Puis-je quitter mon emploi ? »</p>
+          <p className="text-xs text-text-muted">Calculé sur ton épargne et tes dépenses réelles</p>
         </Card>
 
-        {/* Decision chips */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-          {decisions.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setActiveId(d.id)}
-              className={cn(
-                "flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
-                d.id === activeId
-                  ? "border-gold/40 bg-gold/10 text-gold"
-                  : "border-border bg-surface-2 text-text-secondary"
-              )}
-            >
-              {d.question}
-            </button>
-          ))}
-        </div>
+        {/* Side income input */}
+        <Card>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm font-medium text-text-secondary">Revenu de remplacement</label>
+            <span className="text-sm font-bold text-gold tabular-nums">{formatCurrency(sideIncome)}/mois</span>
+          </div>
+          <input type="range" min={0} max={Math.max(profile.monthlyExpenses, 4000)} step={50} value={sideIncome} onChange={(e) => setSideIncome(Number(e.target.value))} className="w-full accent-[#D4AF37]" />
+          <p className="mt-1.5 text-2xs text-text-muted">
+            Activité, freelance, side-business… Mets ce que tu penses pouvoir gagner sans ton emploi actuel.
+          </p>
+        </Card>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={active.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            className="space-y-4"
-          >
-            {/* Score card */}
-            <Card padding="lg">
-              <p className="font-tight text-base font-semibold text-text-primary">{active.question}</p>
-              <div className="mt-4 flex items-center gap-5">
-                <ScoreRing value={active.score} size={110} strokeWidth={7} color={scoreColor} label="Score décision" />
-                <div className="flex-1 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-muted">Impact financier</span>
-                    <span className={cn("flex items-center gap-1 text-sm font-bold", active.impact >= 0 ? "text-green-progress" : "text-red-risk")}>
-                      <Icon name={active.impact >= 0 ? "arrow-up-right" : "arrow-down-right"} size={14} />
-                      {active.impact >= 0 ? "+" : ""}{active.impact}%
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-muted">Niveau de risque</span>
-                    <Badge variant={active.riskColor === "red" ? "red" : "gold"} dot>{active.risk}</Badge>
-                  </div>
-                  <div className="rounded-lg border border-gold/20 bg-gold-subtle px-3 py-2">
-                    <p className="text-2xs text-text-muted">Recommandation</p>
-                    <p className="font-tight text-sm font-bold text-gold">{active.recommendation}</p>
-                  </div>
-                </div>
+        {/* Result */}
+        <Card padding="lg">
+          <div className="flex items-center gap-5">
+            <ScoreRing value={result.score} size={110} strokeWidth={7} color={scoreColor} label="Faisabilité" />
+            <div className="flex-1 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-muted">Risque</span>
+                <Badge variant={result.risk === "Faible" ? "green" : result.risk === "Modéré" ? "gold" : "red"} dot>{result.risk}</Badge>
               </div>
-            </Card>
-
-            {/* Reasons */}
-            <Card>
-              <p className="mb-3 text-sm font-semibold text-text-secondary">Analyse du Conseil IA</p>
-              <div className="space-y-2.5">
-                {active.reasons.map((r, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + i * 0.08 }}
-                    className="flex items-start gap-2.5"
-                  >
-                    <span className={cn(
-                      "mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full",
-                      r.ok ? "bg-green-progress/15 text-green-progress" : "bg-red-risk/15 text-red-risk"
-                    )}>
-                      <Icon name={r.ok ? "check" : "x"} size={12} strokeWidth={2.5} />
-                    </span>
-                    <span className="text-sm text-text-secondary">{r.text}</span>
-                  </motion.div>
-                ))}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-muted">Autonomie totale</span>
+                <span className="text-sm font-bold text-blue-ai tabular-nums">
+                  {runway === Infinity ? "∞" : Math.floor(runway)} mois
+                </span>
               </div>
-            </Card>
-
-            <div className="grid grid-cols-2 gap-2">
-              <Link href="/simulation">
-                <Button variant="blue" size="lg" className="w-full" icon={<Icon name="sliders-horizontal" size={18} />}>
-                  Simuler
-                </Button>
-              </Link>
-              <Link href="/futures">
-                <Button variant="gold" size="lg" className="w-full" icon={<Icon name="git-branch" size={18} />}>
-                  Futurs Toi
-                </Button>
-              </Link>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-muted">Tenue sans emploi</span>
+                <span className="text-sm font-bold text-text-primary tabular-nums">
+                  {result.coveredMonths >= 999 ? "Illimitée" : `${result.coveredMonths} mois`}
+                </span>
+              </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
+
+          <div className={cn("mt-4 rounded-xl border p-3", scoreColor === "green" ? "border-green-progress/20 bg-green-progress/5" : scoreColor === "gold" ? "border-gold/20 bg-gold-subtle" : "border-red-risk/20 bg-red-risk/5")}>
+            <p className="text-sm leading-relaxed text-text-secondary">{result.recommendation}</p>
+          </div>
+        </Card>
+
+        {/* How it's computed — transparency */}
+        <Card>
+          <p className="mb-2 text-sm font-semibold text-text-secondary">Comment c'est calculé</p>
+          <div className="space-y-1.5 text-xs text-text-secondary">
+            <div className="flex justify-between"><span>Épargne disponible</span><span className="tabular-nums">{formatCurrency(profile.savings)}</span></div>
+            <div className="flex justify-between"><span>Dépenses mensuelles</span><span className="tabular-nums">{formatCurrency(profile.monthlyExpenses)}</span></div>
+            <div className="flex justify-between"><span>Déficit mensuel sans emploi</span><span className="tabular-nums text-red-risk">{formatCurrency(result.monthlyGap)}</span></div>
+            <div className="flex justify-between border-t border-border-subtle pt-1.5 font-semibold"><span className="text-text-primary">= Mois d'autonomie</span><span className="tabular-nums text-text-primary">{result.coveredMonths >= 999 ? "∞" : result.coveredMonths}</span></div>
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/simulation">
+            <Button variant="blue" size="lg" className="w-full" icon={<Icon name="sliders-horizontal" size={18} />}>Simuler un achat</Button>
+          </Link>
+          <Link href="/futures">
+            <Button variant="gold" size="lg" className="w-full" icon={<Icon name="git-branch" size={18} />}>Futurs Toi</Button>
+          </Link>
+        </div>
       </div>
     </div>
   );
