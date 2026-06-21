@@ -34,10 +34,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # L'URL GitHub Pages est en minuscules — on calcule le base path en minuscules
+      # pour qu'il corresponde exactement (ex. /alqimmah-capital).
+      - name: Compute lowercase base path
+        id: basepath
+        run: echo "value=/$(echo '${{ github.event.repository.name }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - name: Build static export
         env:
-          # Sert l'app depuis /<nom-du-repo> sur github.io
-          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.basepath.outputs.value }}
         run: npm run build
 
       - name: Disable Jekyll (préserve le dossier _next)
